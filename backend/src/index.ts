@@ -6,7 +6,7 @@ import { mouvementsRoutes } from './routes/mouvements.js'
 import { neo4jDriver } from './neo4j.js'
 import { showRoutes } from 'hono/dev'
 
-const app = new Hono()
+const app = new Hono().basePath('/api');
 
 app.notFound((c) => {
 	return c.html(
