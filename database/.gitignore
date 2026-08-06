@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+uv.lock.bak
+
+# Fichier volumineux (41 Mo) : ne pas versionner, voir data/README_donnees.md pour se le procurer
+data/oeuvres_clean.csv
+
+# exports/dumps générés localement
+scripts/admin/dumps/
