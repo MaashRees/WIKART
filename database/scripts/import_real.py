@@ -2,9 +2,9 @@
 
 Remplace l'échantillon fictif du Bloc 1 : vide le graphe puis importe
 les 137k œuvres, artistes, musées/villes/départements/régions, mouvements
-et relations d'influence Wikidata depuis database/data/.
+et relations d'influence Wikidata depuis le dossier data/ situé à la racine.
 
-Décisions de modélisation (voir data/README_donnees.md) :
+Décisions de modélisation (voir ../data/README.md) :
 - Artiste.nom = segment individuel de auteur_brut (split sur ';', trim) —
   pas de fuzzy matching automatique, deux graphies du même artiste réel
   restent deux nœuds distincts (limite assumée, cf. piège n°1 de la proposition).
@@ -25,7 +25,7 @@ import pandas as pd
 
 from connection import get_driver, NEO4J_DATABASE
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 BATCH_SIZE = 2000
 
 

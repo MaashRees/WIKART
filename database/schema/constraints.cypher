@@ -1,6 +1,6 @@
 // WIKART — Contraintes d'unicité + index Neo4j
 // À exécuter une seule fois sur une base vide (idempotent grâce à IF NOT EXISTS).
-// Clés choisies en fonction des données réelles livrées par Seer (voir data/README_donnees.md).
+// Clés choisies en fonction des données réelles livrées par Seer (voir ../data/README.md).
 
 // --- Oeuvre ---
 // id_oeuvre : clé stable de la notice Joconde, 0 doublon vérifié par Seer.
