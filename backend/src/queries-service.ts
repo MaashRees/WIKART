@@ -86,6 +86,104 @@ export class QueriesMetierService {
     `;
     return this.runQuery<{ musee: string; region: string; nb_oeuvres: number }>(query, { artisteNom });
   }
+
+  async listerOeuvres() {
+    const query = `
+      MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
+      OPTIONAL MATCH (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      RETURN o.titre AS titre, a.nom AS artiste, head(collect(mv.nom)) AS mouvement,
+        toFloat(o.annee_creation) AS annee, m.nom AS musee
+      ORDER BY o.titre
+    `;
+    return this.runQuery<Oeuvre>(query);
+  }
+
+  async trouverOeuvre(titre: string) {
+    const query = `
+      MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre {titre: $titre})-[:EXPOSEE_A]->(m:Musee)
+      OPTIONAL MATCH (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      RETURN o.titre AS titre, a.nom AS artiste, head(collect(mv.nom)) AS mouvement,
+        toFloat(o.annee_creation) AS annee, m.nom AS musee
+    `;
+    const [oeuvre] = await this.runQuery<Oeuvre>(query, { titre });
+    return oeuvre;
+  }
+
+  async oeuvreExiste(titre: string) {
+    const query = `
+      MATCH (o:Oeuvre {titre: $titre})
+      RETURN o.titre AS titre
+    `;
+    const result = await this.runQuery<{ titre: string }>(query, { titre });
+    return result.length > 0;
+  }
+
+  async peutRelierOeuvre(artiste: string, mouvement: string, musee: string) {
+    const query = `
+      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (m:Musee {nom: $musee})
+      RETURN a.nom AS artiste
+    `;
+    const result = await this.runQuery<{ artiste: string }>(query, { artiste, mouvement, musee });
+    return result.length > 0;
+  }
+
+  async creerOeuvre(oeuvre: OeuvreInput) {
+    const query = `
+      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (m:Musee {nom: $musee})
+      CREATE (o:Oeuvre {titre: $titre, annee_creation: $annee})
+      CREATE (a)-[:A_CREE]->(o)
+      CREATE (o)-[:EXPOSEE_A]->(m)
+      RETURN o.titre AS titre, a.nom AS artiste, mv.nom AS mouvement,
+        toFloat(o.annee_creation) AS annee, m.nom AS musee
+    `;
+    const [created] = await this.runQuery<Oeuvre>(query, oeuvre);
+    return created;
+  }
+
+  async modifierOeuvre(titre: string, oeuvre: Omit<OeuvreInput, 'titre'>) {
+    const query = `
+      MATCH (o:Oeuvre {titre: $titre})
+      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (m:Musee {nom: $musee})
+      OPTIONAL MATCH ()-[ancienneCreation:A_CREE]->(o)
+      WITH o, a, mv, m, collect(ancienneCreation) AS anciennesCreations
+      FOREACH (relation IN anciennesCreations | DELETE relation)
+      OPTIONAL MATCH (o)-[ancienneExposition:EXPOSEE_A]->()
+      WITH o, a, mv, m, collect(ancienneExposition) AS anciennesExpositions
+      FOREACH (relation IN anciennesExpositions | DELETE relation)
+      SET o.annee_creation = $annee
+      CREATE (a)-[:A_CREE]->(o)
+      CREATE (o)-[:EXPOSEE_A]->(m)
+      RETURN o.titre AS titre, a.nom AS artiste, mv.nom AS mouvement,
+        toFloat(o.annee_creation) AS annee, m.nom AS musee
+    `;
+    const [updated] = await this.runQuery<Oeuvre>(query, { titre, ...oeuvre });
+    return updated;
+  }
+
+  async supprimerOeuvre(titre: string) {
+    const query = `
+      MATCH (o:Oeuvre {titre: $titre})
+      DETACH DELETE o
+      RETURN $titre AS titre
+    `;
+    const [deleted] = await this.runQuery<{ titre: string }>(query, { titre });
+    return deleted;
+  }
 }
+
+export type Oeuvre = {
+  titre: string;
+  artiste: string;
+  mouvement: string | null;
+  annee: number | null;
+  musee: string;
+};
+
+export type OeuvreInput = Omit<Oeuvre, 'mouvement'> & {
+  mouvement: string;
+};
 
 export const queriesMetierService = QueriesMetierService.create(neo4jDriver, env.NEO4J_DATABASE);

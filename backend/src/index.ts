@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { testRoutes } from './routes/test.js'
 import { artistesRoutes } from './routes/artistes.js'
 import { mouvementsRoutes } from './routes/mouvements.js'
+import { oeuvresRoutes } from './routes/oeuvres.js'
 import { neo4jDriver } from './neo4j.js'
 import { showRoutes } from 'hono/dev'
 
@@ -20,6 +21,7 @@ app.notFound((c) => {
 app.route("/", testRoutes)
 app.route('/mouvements', mouvementsRoutes)
 app.route('/artistes', artistesRoutes)
+app.route('/oeuvres', oeuvresRoutes)
 
 const server = serve({
 	fetch: app.fetch,
