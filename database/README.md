@@ -34,6 +34,11 @@ uv run scripts/queries_metier.py
 # 5. GDS PageRank/Louvain — nécessite une session Aura Graph Analytics payante,
 #    voir limitation ci-dessous. Ne PAS lancer sans validation budget.
 uv run scripts/gds_algorithms.py
+
+# 6. Bloc 3 — administration
+uv run scripts/admin/dump_restore.py dump              # sauvegarde JSON dans scripts/admin/dumps/<timestamp>/
+uv run scripts/admin/dump_restore.py restore <dossier>  # restauration (idempotent, testé)
+uv run scripts/admin/crud.py                             # CRUD Python — livrable séparé du CRUD Express
 ```
 
 ## Limitation connue : GDS (PageRank/Louvain)
@@ -54,6 +59,19 @@ repli, section 4.3 de `Repartition-Taches-Journee.md`) :
 
 `scripts/gds_algorithms.py` reste écrit et prêt à l'emploi si l'équipe décide
 de payer une session ponctuelle (ex. pour la soutenance).
+
+## Bloc 3 — administration
+
+- `scripts/admin/dump_restore.py` — dump/restore **portable via le driver
+  Python uniquement** (pas de `neo4j-admin`, indisponible sur AuraDB Free).
+  Export JSON par lot de tous les nœuds/relations, restore par `MERGE`
+  (testé idempotent : un restore sur une base déjà peuplée ne duplique rien).
+  Sortie dans `scripts/admin/dumps/` (gitignored, jamais commité).
+- `scripts/admin/crud.py` — **CRUD Python**, livrable séparé exigé par le
+  sujet, driver `neo4j` direct (indépendant du CRUD Express de Conambot).
+  Démo sur un nœud `Oeuvre` préfixé `DEMO-CRUD-`, auto-nettoyée en fin de script.
+- `scripts/admin/SECURITE.md` — bonnes pratiques et limites connues
+  (pas de RBAC granulaire sur AuraDB Free).
 
 ## Contenu
 
