@@ -32,9 +32,9 @@ Un sous-ensemble filtré de la base Joconde : domaine peinture/sculpture/beaux-a
 
 ---
 
-## 2. `artistes_wikidata.csv` - 150 lignes × 6 colonnes
+## 2. `artistes_wikidata.csv` - 10 000 lignes × 6 colonnes
 
-Les **150 graphies d'auteur les plus fréquentes** dans `oeuvres_clean.csv` (pas les 39 315 graphies distinctes - trop pour interroger Wikidata en une journée), avec leur correspondance Wikidata quand elle a pu être établie.
+Les **10 000 graphies d'auteur les plus fréquentes** dans `oeuvres_clean.csv` (pas les 39 315 graphies distinctes au total), avec leur correspondance Wikidata quand elle a pu être établie. Ce top 10 000 couvre **107 873 des 137 474 œuvres (78,5%)** - contre 29% avec le premier essai à 150 artistes.
 
 | Colonne | Type | Contenu / exemple | Notes |
 |---|---|---|---|
@@ -43,34 +43,34 @@ Les **150 graphies d'auteur les plus fréquentes** dans `oeuvres_clean.csv` (pas
 | `label_wikidata` | texte, vide si non trouvé | `"Auguste Rodin"` | Nom canonique retenu - **c'est cette valeur (pas `auteur_joconde`) qui sert de clé `artiste` dans les deux fichiers suivants.** |
 | `naissance` | nombre, parfois vide | `1840.0` | Année de naissance confirmée par Wikidata (P569) si `trouve=True`, sinon extraite directement de la parenthèse `(1840-1917)` de `auteur_joconde` - donc utilisable même quand `trouve=False`, mais alors non confirmée par une source externe. |
 | `deces` | nombre, parfois vide | `1917.0` | Même logique que `naissance`. |
-| `trouve` | booléen | `True` / `False` | **114/150 (76%) trouvés.** Si `False`, `qid_wikidata` et `label_wikidata` sont vides - dans ce cas, utilise `auteur_joconde` tel quel comme identifiant de l'artiste si tu veux tout de même créer un nœud `Artiste`. |
+| `trouve` | booléen | `True` / `False` | **5 250/10 000 (52,5%) trouvés** - taux plus faible qu'au premier essai (76% sur le top 150) : logique, plus on descend dans la fréquence, plus les artistes sont obscurs/régionaux et donc absents de Wikidata. Si `False`, `qid_wikidata` et `label_wikidata` sont vides - dans ce cas, utilise `auteur_joconde` tel quel comme identifiant de l'artiste si tu veux tout de même créer un nœud `Artiste`. |
 
 **Limites connues à ne pas découvrir à la dure** :
-- Les prénoms composés séparés par un espace plutôt qu'un tiret (ex. `"RENOIR Pierre Auguste"`) cassent l'heuristique de reconstruction du nom et ne sont donc pas retrouvés, même si l'artiste existe sur Wikidata.
-- 3 cas d'homonymes n'ont pas pu être départagés par l'année de naissance (le script garde alors l'entité Wikidata la plus documentée par défaut) - à vérifier à la main si ces 3 artistes comptent beaucoup d'œuvres.
+- Les prénoms composés séparés par un espace plutôt qu'un tiret (ex. `"RENOIR Pierre Auguste"`) cassent l'heuristique de reconstruction du nom et ne sont donc pas retrouvés, même si l'artiste existe sur Wikidata. 194 graphies n'ont même pas pu être décomposées en (prénom, nom) (moins de 2 mots exploitables).
+- **808 cas d'homonymes n'ont pas pu être départagés par l'année de naissance** (contre 3 seulement sur le top 150 - les noms génériques sont plus fréquents dans la longue traîne). Le script garde alors l'entité Wikidata la plus documentée par défaut : risque réel de mauvaise correspondance sur ces 808 cas, à auditer avant de s'appuyer dessus pour une conclusion présentée à l'oral.
 - Les entrées de type atelier/manufacture (ex. `"Atelier de Pistillus"`) ne peuvent naturellement pas être trouvées sur Wikidata (ce ne sont pas des personnes).
 
 ---
 
-## 3. `rel_influence_par.csv` - 56 lignes × 2 colonnes
+## 3. `rel_influence_par.csv` - 700 lignes × 2 colonnes
 
 | Colonne | Type | Contenu / exemple | Notes |
 |---|---|---|---|
 | `artiste` | texte | `"Auguste Rodin"` | **`label_wikidata`**, pas `auteur_joconde` - jointure via `artistes_wikidata.csv`. |
 | `influenceur` | texte | `"Jean-Baptiste Carpeaux"` ou `"Sculpture africaine"` | Peut être un autre artiste **ou une entité non-personne** (concept, mouvement, culture - ex. "Sculpture africaine" pour Picasso). **Décision de modélisation à prendre** : soit tu restreins `INFLUENCE_PAR` aux entrées qui correspondent aussi à un artiste connu (jointure sur `label_wikidata`), soit tu acceptes des nœuds `Artiste` "fantômes" pour les influenceurs non-personnes, soit tu les routes vers un autre type de nœud (`Concept`/`Style`). Pas tranché côté extraction - c'est un choix de modélisation graphe. |
 
-24 des 150 artistes ont au moins une relation d'influence renseignée sur Wikidata.
+200 des 10 000 artistes ont au moins une relation d'influence renseignée sur Wikidata.
 
 ---
 
-## 4. `artistes_mouvement.csv` - 77 lignes × 2 colonnes
+## 4. `artistes_mouvement.csv` - 1 706 lignes × 2 colonnes
 
 | Colonne | Type | Contenu / exemple | Notes |
 |---|---|---|---|
 | `artiste` | texte | `"Pablo Picasso"` | **`label_wikidata`**, même jointure que ci-dessus. |
 | `mouvement` | texte | `"cubisme"` | Nom du mouvement (label Wikidata de la propriété P135). Un artiste peut apparaître sur plusieurs lignes s'il a plusieurs mouvements (ex. Picasso : cubisme, surréalisme, postimpressionnisme...). |
 
-**C'est la vraie source du nœud `MouvementArtistique`** (pas `epoque` dans `oeuvres_clean.csv`, voir plus haut) - mais elle ne couvre que 48 des 150 artistes ciblés, donc uniquement une fraction des œuvres. Pour les artistes hors de ce top 150 ou sans mouvement Wikidata trouvé, il n'y aura pas de `MouvementArtistique` - à assumer comme une limite de couverture plutôt qu'à combler artificiellement.
+**C'est la vraie source du nœud `MouvementArtistique`** (pas `epoque` dans `oeuvres_clean.csv`, voir plus haut) - elle couvre 754 des 10 000 artistes ciblés (contre 48/150 au premier essai). Pour les artistes hors de ce top 10 000 ou sans mouvement Wikidata trouvé, il n'y aura pas de `MouvementArtistique` - à assumer comme une limite de couverture plutôt qu'à combler artificiellement.
 
 ---
 
@@ -87,4 +87,4 @@ artistes_wikidata.csv.auteur_joconde  →  artistes_wikidata.csv.label_wikidata
                     rel_influence_par.csv.artiste   artistes_mouvement.csv.artiste
 ```
 
-Sur les 137 474 œuvres, seules celles dont `auteur_brut` correspond **exactement** à une des 150 graphies de `artistes_wikidata.csv` pourront être reliées à une influence ou un mouvement. C'est un sous-ensemble volontairement restreint pour la V1 du graphe - étendre à plus d'artistes est possible en relançant `scrape_wikidata_artistes.py` avec un top N plus grand.
+Sur les 137 474 œuvres, celles dont `auteur_brut` correspond **exactement** à une des 10 000 graphies de `artistes_wikidata.csv` (107 873 œuvres, 78,5%) pourront potentiellement être reliées à une influence ou un mouvement - à condition en plus que `trouve=True` pour cet artiste (52,5% du top 10 000). Étendre encore la couverture est possible en relançant `scrape_wikidata_artistes.py` avec un `N_TARGET_ARTISTS` plus grand (39 315 graphies distinctes au total dans `oeuvres_clean.csv`).
