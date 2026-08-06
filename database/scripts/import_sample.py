@@ -1,5 +1,5 @@
 """Import d'un petit échantillon FICTIF pour valider le pipeline en attendant
-la vraie livraison de Seer (Bloc 1 — cf. Repartition-Taches-Journee.md).
+la vraie livraison de Seer (Bloc 1 - cf. Repartition-Taches-Journee.md).
 
 Usage : uv run scripts/import_sample.py
 

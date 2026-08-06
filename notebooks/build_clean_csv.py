@@ -12,6 +12,37 @@ pd.set_option("display.max_columns", None)
 pd.set_option("display.width", 200)
 
 
+def _read_joconde_csv(csv_path) -> pd.DataFrame:
+    """Charge joconde.csv en essayant d'abord le moteur strict pyarrow (rapide),
+    et bascule sur un moteur tolerant si une ou plusieurs lignes sont malformees
+    (deja rencontre : une mise a jour Joconde a introduit une ligne avec une
+    sequence de guillemets cassee dans le champ Bibliographie, qui fait echouer
+    pyarrow avec "Expected 68 columns, got 67"). Les lignes malformees sont
+    ignorees et comptees, jamais silencieusement perdues sans le signaler."""
+    common_kwargs = dict(
+        sep="|", quotechar='"', dtype=str, na_values=[""], encoding="utf-8"
+    )
+    try:
+        return pd.read_csv(csv_path, engine="pyarrow", **common_kwargs)
+    except pd.errors.ParserError as exc:
+        print(f"[avertissement] lecture stricte (pyarrow) echouee : {exc}")
+        print("[avertissement] nouvel essai avec le moteur python (plus lent, plus tolerant), lignes malformees ignorees...")
+        bad_lines: list[list[str]] = []
+
+        def _on_bad_line(bad_line: list[str]):
+            bad_lines.append(bad_line)
+            return None  # None = ignorer la ligne plutot que de planter
+
+        df = pd.read_csv(
+            csv_path, engine="python", on_bad_lines=_on_bad_line, **common_kwargs
+        )
+        print(
+            f"[avertissement] {len(bad_lines)} ligne(s) malformee(s) ignoree(s) "
+            f"sur {len(df) + len(bad_lines)} lignes lues au total."
+        )
+        return df
+
+
 def main():
     # ------------------------------------------------------------------
     # 1. Chargement du CSV source avec les parametres valides
@@ -19,15 +50,7 @@ def main():
     print("=" * 80)
     print("1. Chargement du CSV source")
     print("=" * 80)
-    df = pd.read_csv(
-        CSV_PATH,
-        sep="|",
-        quotechar='"',
-        dtype=str,
-        na_values=[""],
-        encoding="utf-8",
-        engine="pyarrow",
-    )
+    df = _read_joconde_csv(CSV_PATH)
     print(f"Lignes chargees : {len(df):,}")
     print(f"Colonnes chargees : {len(df.columns)}")
 
