@@ -4,20 +4,13 @@ Remplace l'échantillon fictif du Bloc 1 : vide le graphe puis importe
 les 137k œuvres, artistes, musées/villes/départements/régions, mouvements
 et relations d'influence Wikidata depuis le dossier data/ situé à la racine.
 
-Décisions de modélisation (voir ../data/README.md) :
-- Artiste.nom = segment individuel de auteur_brut (split sur ';', trim) —
-  pas de fuzzy matching automatique, deux graphies du même artiste réel
-  restent deux nœuds distincts (limite assumée, cf. piège n°1 de la proposition).
-- MouvementArtistique et INFLUENCE_PAR sont rattachés à l'Artiste (via
-  label_wikidata), pas à l'Oeuvre : Epoque est trop sparse/peu fiable
-  pour servir de source de mouvement (cf. 1.md, synthèse Seer).
-- Un influenceur Wikidata qui n'est pas un artiste connu (concept, culture,
-  mouvement) est routé vers un nœud :Concept plutôt qu'un Artiste fantôme.
-
-Usage : uv run scripts/import_real.py
+Usage :
+    uv run scripts/import_real.py           # Vide le graphe puis importe tout
+    uv run scripts/import_real.py --no-wipe # Rajoute/met à jour sans vider le graphe
 """
 from __future__ import annotations
 
+import argparse
 import math
 from pathlib import Path
 
@@ -217,6 +210,16 @@ def import_influences(session, known_artist_labels: set[str]) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Import réel des données livrées par Seer dans AuraDB.")
+    parser.add_argument(
+        "--no-wipe",
+        "--append",
+        dest="no_wipe",
+        action="store_true",
+        help="Ne pas vider le graphe avant l'import (mode upsert : rajoute ou met à jour les éléments existants).",
+    )
+    args = parser.parse_args()
+
     df = pd.read_csv(DATA_DIR / "oeuvres_clean.csv")
     wikidata_lookup = load_wikidata_lookup()
     known_artist_labels = {
@@ -226,7 +229,10 @@ def main() -> None:
     driver = get_driver()
     try:
         with driver.session(database=NEO4J_DATABASE) as session:
-            wipe_graph(session)
+            if not args.no_wipe:
+                wipe_graph(session)
+            else:
+                print("Conservation du graphe (mode upsert / mise à jour sans suppression).")
             import_geo_and_musees(session, df)
             import_oeuvres(session, df)
             import_artistes(session, df, wikidata_lookup)

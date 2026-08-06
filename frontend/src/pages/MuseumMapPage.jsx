@@ -60,7 +60,7 @@ export default function MuseumMapPage() {
         >
           <div>
             <div className="badge badge-cyan" style={{ marginBottom: 8 }}>
-              <MapPin size={12} /> Geolocation & Spatial Distribution — Joconde
+              <MapPin size={12} /> Geolocation & Spatial Distribution - Joconde
             </div>
             <h1
               className="font-display"
@@ -120,16 +120,15 @@ export default function MuseumMapPage() {
               m === "Tous"
                 ? enrichedMusees.length
                 : enrichedMusees.filter((mus) => mus.mouvements.includes(m))
-                    .length;
+                  .length;
             const isSelected = mouvementFiltre === m;
 
             return (
               <button
                 key={m}
                 onClick={() => setMouvementFiltre(m)}
-                className={`btn ${
-                  isSelected ? "btn-primary" : "btn-secondary"
-                }`}
+                className={`btn ${isSelected ? "btn-primary" : "btn-secondary"
+                  }`}
                 style={{
                   padding: "6px 14px",
                   fontSize: "0.85rem",

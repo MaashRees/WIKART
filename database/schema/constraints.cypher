@@ -1,4 +1,4 @@
-// WIKART — Contraintes d'unicité + index Neo4j
+// WIKART - Contraintes d'unicité + index Neo4j
 // À exécuter une seule fois sur une base vide (idempotent grâce à IF NOT EXISTS).
 // Clés choisies en fonction des données réelles livrées par Seer (voir ../data/README.md).
 
@@ -16,7 +16,7 @@ FOR (m:Musee) REQUIRE m.code_museofile IS UNIQUE;
 // nom = segment individuel de auteur_brut (après split sur ';' et trim).
 // Pas de dédoublonnage fuzzy automatique (choix de Seer) : deux graphies
 // différentes du même artiste réel (ex. "Monet Claude (1840-1926)" vs
-// "MONET Claude Oscar") restent deux nœuds distincts — limite assumée et
+// "MONET Claude Oscar") restent deux nœuds distincts - limite assumée et
 // documentée plutôt que fusionnée à l'aveugle.
 CREATE CONSTRAINT artiste_nom_unique IF NOT EXISTS
 FOR (a:Artiste) REQUIRE a.nom IS UNIQUE;
