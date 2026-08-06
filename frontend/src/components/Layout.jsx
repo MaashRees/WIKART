@@ -184,7 +184,7 @@ export default function Layout({ children }) {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Sparkles size={15} style={{ color: "var(--accent-secondary)" }} />
             <span>
-              Projet Pro NoSQL & Big Data — Musées, Artistes et Œuvres
+              Projet Pro NoSQL & Big Data - Musées, Artistes et Œuvres
             </span>
           </div>
 

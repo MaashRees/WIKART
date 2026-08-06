@@ -63,7 +63,7 @@ export default function ArtistExplorer() {
         >
           <div>
             <div className="badge badge-purple" style={{ marginBottom: 8 }}>
-              <UserCheck size={12} /> Nœud Artiste — Neo4j Joconde Graph
+              <UserCheck size={12} /> Nœud Artiste - Neo4j Joconde Graph
             </div>
             <h1
               className="font-display"
