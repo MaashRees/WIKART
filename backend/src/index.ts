@@ -1,6 +1,10 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { testRoutes } from './routes/test.js'
+import { artistesRoutes } from './routes/artistes.js'
+import { mouvementsRoutes } from './routes/mouvements.js'
+import { neo4jDriver } from './neo4j.js'
+import { showRoutes } from 'hono/dev'
 
 const app = new Hono()
 
@@ -14,6 +18,8 @@ app.notFound((c) => {
 })
 
 app.route("/", testRoutes)
+app.route('/mouvements', mouvementsRoutes)
+app.route('/artistes', artistesRoutes)
 
 const server = serve({
 	fetch: app.fetch,
@@ -22,12 +28,19 @@ const server = serve({
 	console.log(`Server is running on http://localhost:${info.port}`)
 })
 
+// Liste des routes dispos dans la console
+showRoutes(app, {
+	colorize: true,
+})
+
 // graceful shutdown
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
 	server.close()
+	await neo4jDriver.close()
 	process.exit(0)
 })
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
+	await neo4jDriver.close()
 	server.close((err) => {
 		if (err) {
 			console.error(err)
