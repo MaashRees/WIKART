@@ -1,233 +1,173 @@
 import { Building2, Filter, MapPin, Navigation } from "lucide-react";
-import { useState } from "react";
-import { mockMusees } from "../api/mocks";
+import { useEffect, useState } from "react";
+import { getMusees } from "../api/queries";
 import MuseumMap from "../components/MuseumMap";
 
 export default function MuseumMapPage() {
+  const [musees, setMusees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState(null);
   const [mouvementFiltre, setMouvementFiltre] = useState("Tous");
 
-  // Richer simulated museum mock dataset for map
-  const enrichedMusees = [
-    ...mockMusees,
-    {
-      nom: "Musée d'Orsay",
-      lat: 48.86,
-      lon: 2.3266,
-      mouvements: ["Impressionnisme", "Post-impressionnisme"],
-    },
-    {
-      nom: "Musée des Beaux-Arts de Lyon",
-      lat: 45.7675,
-      lon: 4.8336,
-      mouvements: ["Renaissance", "Impressionnisme"],
-    },
-    {
-      nom: "Musée d'Art Moderne de Lille",
-      lat: 50.6365,
-      lon: 3.1478,
-      mouvements: ["Cubisme", "Art nouveau"],
-    },
-    {
-      nom: "Musée des Beaux-Arts de Rouen",
-      lat: 49.4444,
-      lon: 1.0942,
-      mouvements: ["Impressionnisme"],
-    },
-  ];
+  useEffect(() => {
+    getMusees()
+      .then((data) => {
+        // Filter out items without valid GPS coordinates
+        const valid = (data || []).filter(
+          (m) =>
+            typeof m.lat === "number" &&
+            typeof m.lon === "number" &&
+            !isNaN(m.lat) &&
+            !isNaN(m.lon),
+        );
+        setMusees(valid);
+      })
+      .catch((err) => setErreur(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const mouvements = [
+  const mouvementsTop = [
     "Tous",
-    ...new Set(enrichedMusees.flatMap((m) => m.mouvements)),
+    ...Array.from(
+      new Set(
+        musees.flatMap((m) =>
+          (m.mouvements || []).filter((mov) => mov && mov.trim()),
+        ),
+      ),
+    ).sort((a, b) => a.localeCompare(b, "fr")),
   ];
 
   const museesFiltres =
     mouvementFiltre === "Tous"
-      ? enrichedMusees
-      : enrichedMusees.filter((m) => m.mouvements.includes(mouvementFiltre));
+      ? musees
+      : musees.filter((m) =>
+          (m.mouvements || []).some(
+            (mov) =>
+              mov && mov.toLowerCase().includes(mouvementFiltre.toLowerCase()),
+          ),
+        );
+
+  if (loading)
+    return (
+      <div className="page-container text-slate-400">
+        Chargement de la géolocalisation des musées depuis Neo4j...
+      </div>
+    );
+  if (erreur)
+    return (
+      <div className="page-container text-red-400">
+        Erreur lors du chargement des musées : {erreur}
+      </div>
+    );
 
   return (
     <div className="page-container animate-fade-in flex flex-col gap-6">
       {/* Header */}
-      <div className="glass-card" style={{ padding: "24px 28px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 16,
-          }}
-        >
+      <div className="glass-card p-6">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
-            <div className="badge badge-cyan" style={{ marginBottom: 8 }}>
-              <MapPin size={12} /> Geolocation & Spatial Distribution - Joconde
+            <div className="badge badge-cyan mb-2 inline-flex items-center gap-1.5 text-xs">
+              <MapPin size={13} /> Geolocation & Spatial Distribution — Base
+              Joconde Neo4j
             </div>
-            <h1
-              className="font-display"
-              style={{ fontSize: "2.1rem", margin: 0 }}
-            >
+            <h1 className="font-display text-2xl font-bold text-white">
               Cartographie des{" "}
               <span className="gradient-text">Musées de France</span>
             </h1>
-            <p
-              style={{
-                color: "var(--text-muted)",
-                fontSize: "0.92rem",
-                marginTop: 4,
-              }}
-            >
-              Localisation des établissements détenteurs et rattachement
-              territorial des courants artistiques.
+            <p className="text-slate-400 text-xs mt-1">
+              Localisation géographique réelle des 450+ établissements
+              détenteurs et maillage territorial des mouvements.
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <div
-              className="badge badge-purple"
-              style={{ padding: "6px 12px", fontSize: "0.78rem" }}
-            >
-              <Building2 size={14} /> {museesFiltres.length} musées affichés
+          <div className="flex gap-2.5 items-center">
+            <div className="badge badge-purple px-3 py-1.5 text-xs inline-flex items-center gap-1.5">
+              <Building2 size={14} /> {museesFiltres.length} / {musees.length}{" "}
+              musées
             </div>
           </div>
         </div>
       </div>
 
-      {/* Movement Filter Pills Bar */}
-      <div className="glass-card" style={{ padding: "16px 20px" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              color: "var(--text-muted)",
-              fontSize: "0.88rem",
-              fontWeight: 600,
-            }}
-          >
-            <Filter size={16} /> Mouvement :
+      {/* Movement Filter List */}
+      <div className="glass-card p-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs font-semibold shrink-0">
+            <Filter size={15} /> Filtrer par mouvement :
           </div>
 
-          {mouvements.map((m) => {
-            const count =
-              m === "Tous"
-                ? enrichedMusees.length
-                : enrichedMusees.filter((mus) => mus.mouvements.includes(m))
-                  .length;
-            const isSelected = mouvementFiltre === m;
+          <label className="flex items-center gap-2 min-w-[280px] max-w-full flex-1">
+            <span className="sr-only">Choisir un mouvement</span>
+            <select
+              value={mouvementFiltre}
+              onChange={(e) => setMouvementFiltre(e.target.value)}
+              className="input-field w-full text-xs px-3 py-2 bg-slate-900"
+            >
+              {mouvementsTop.map((m) => {
+                const count =
+                  m === "Tous"
+                    ? musees.length
+                    : musees.filter((mus) =>
+                        (mus.mouvements || []).some(
+                          (mov) =>
+                            mov && mov.toLowerCase().includes(m.toLowerCase()),
+                        ),
+                      ).length;
 
-            return (
-              <button
-                key={m}
-                onClick={() => setMouvementFiltre(m)}
-                className={`btn ${isSelected ? "btn-primary" : "btn-secondary"
-                  }`}
-                style={{
-                  padding: "6px 14px",
-                  fontSize: "0.85rem",
-                  borderRadius: 20,
-                  boxShadow: isSelected
-                    ? "0 0 12px rgba(129, 140, 248, 0.3)"
-                    : "none",
-                }}
-              >
-                {m}
-                <span
-                  style={{
-                    background: isSelected
-                      ? "rgba(255, 255, 255, 0.25)"
-                      : "rgba(255, 255, 255, 0.08)",
-                    padding: "1px 6px",
-                    borderRadius: 10,
-                    fontSize: "0.75rem",
-                    marginLeft: 4,
-                  }}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+                return (
+                  <option key={m} value={m}>
+                    {m} ({count})
+                  </option>
+                );
+              })}
+            </select>
+          </label>
         </div>
       </div>
 
       {/* Map & Museum List Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Map view */}
-        <MuseumMap musees={museesFiltres} />
+        <div className="lg:col-span-2">
+          <MuseumMap musees={museesFiltres} />
+        </div>
 
         {/* Sidebar list of museums */}
-        <div
-          className="glass-card"
-          style={{ display: "flex", flexDirection: "column", gap: 16 }}
-        >
-          <h3
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: "1.1rem",
-            }}
-          >
-            <Navigation size={18} style={{ color: "var(--accent-cyan)" }} />
+        <div className="glass-card p-5 flex flex-col gap-4">
+          <h3 className="text-white font-bold text-base flex items-center gap-2">
+            <Navigation size={18} className="text-cyan-400" />
             Établissements ({museesFiltres.length})
           </h3>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-              overflowY: "auto",
-              maxHeight: 460,
-            }}
-          >
-            {museesFiltres.map((mus) => (
+          <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[500px] pr-1">
+            {museesFiltres.map((mus, idx) => (
               <div
-                key={mus.nom}
-                style={{
-                  padding: 14,
-                  borderRadius: 10,
-                  background: "rgba(255, 255, 255, 0.03)",
-                  border: "1px solid var(--border)",
-                }}
+                key={`${mus.nom}-${idx}`}
+                className="p-3 rounded-xl bg-white/5 border border-white/10"
               >
-                <div
-                  style={{
-                    fontWeight: 700,
-                    color: "#fff",
-                    fontSize: "0.95rem",
-                    marginBottom: 4,
-                  }}
-                >
+                <div className="font-bold text-white text-sm mb-1">
                   {mus.nom}
                 </div>
-                <div
-                  style={{
-                    fontSize: "0.8rem",
-                    color: "var(--text-muted)",
-                    marginBottom: 8,
-                  }}
-                >
+                <div className="text-[11px] text-slate-400 mb-2">
                   GPS: {mus.lat.toFixed(3)}, {mus.lon.toFixed(3)}
                 </div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {mus.mouvements.map((mov) => (
-                    <span
-                      key={mov}
-                      className="badge badge-purple"
-                      style={{ fontSize: "0.68rem" }}
-                    >
-                      {mov}
+                <div className="flex gap-1 flex-wrap">
+                  {(mus.mouvements || [])
+                    .filter(Boolean)
+                    .slice(0, 3)
+                    .map((mov) => (
+                      <span
+                        key={mov}
+                        className="badge badge-purple text-[10px] px-2 py-0.5"
+                      >
+                        {mov}
+                      </span>
+                    ))}
+                  {(mus.mouvements || []).filter(Boolean).length > 3 && (
+                    <span className="badge badge-cyan text-[10px] px-1.5 py-0.5">
+                      +{(mus.mouvements || []).filter(Boolean).length - 3}
                     </span>
-                  ))}
+                  )}
                 </div>
               </div>
             ))}
