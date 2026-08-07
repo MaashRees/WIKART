@@ -1,15 +1,10 @@
 import { Hono } from 'hono';
 import { queriesMetierService } from '../queries-service.js';
-import { zValidator } from '@hono/zod-validator';
+import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod';
 import { validationError } from '../validation.js';
 
 const mouvementsRoutes = new Hono();
-
-mouvementsRoutes.get('/stats', async (c) => {
-  const stats = await queriesMetierService.getDashboardStats();
-  return c.json(stats);
-});
 
 mouvementsRoutes.get('/:mouvement/artistes-centraux', zValidator(
 	'param',

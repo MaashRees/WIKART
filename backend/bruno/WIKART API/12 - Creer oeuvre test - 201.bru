@@ -1,0 +1,25 @@
+meta {
+  name: 12 - Creer oeuvre test - 201
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/oeuvres
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+}
+
+body:json {
+  {
+    "titre": "Œuvre de test API WIKART",
+    "artiste": "Claude Monet",
+    "mouvement": "Impressionnisme",
+    "musee": "Musée Marmottan",
+    "annee": 2026
+  }
+}

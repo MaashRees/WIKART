@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "WIKART API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

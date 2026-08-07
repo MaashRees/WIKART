@@ -1,0 +1,22 @@
+meta {
+  name: 16 - Payload invalide - 400
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/oeuvres
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+}
+
+body:json {
+  {
+    "titre": "",
+    "artiste": "Claude Monet"
+  }
+}

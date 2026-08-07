@@ -1,0 +1,24 @@
+meta {
+  name: 14 - Modifier oeuvre test
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/oeuvres/%C5%92uvre%20de%20test%20API%20WIKART
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+}
+
+body:json {
+  {
+    "artiste": "Claude Monet",
+    "mouvement": "Impressionnisme",
+    "musee": "Musée de l'Orangerie",
+    "annee": 2025
+  }
+}
