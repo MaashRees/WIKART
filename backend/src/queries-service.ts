@@ -201,12 +201,24 @@ export class QueriesMetierService {
     return this.runQuery<{ musee: string; region: string; nb_oeuvres: number }>(query, { artisteNom });
   }
 
+  // Certaines notices Joconde sont créditées à plusieurs Artiste distincts
+  // (ex. "d'après" : copie/école, plusieurs graphies pour un même contributeur)
+  // — sans regroupement, MATCH (a)-[:A_CREE]->(o) renvoie une ligne par artiste
+  // pour la même Oeuvre, ce qui duplique o.reference (viole la contrainte
+  // d'unicité au niveau applicatif) et casse les clés React côté frontend.
+  // On regroupe donc par (o, m) et on joint les artistes distincts.
+  static readonly #listeArtistesJointsFragment = `
+    reduce(s = '', nom IN artistes | CASE WHEN s = '' THEN nom ELSE s + '; ' + nom END) AS artiste
+  `;
+
   async listerOeuvres(page: number = 1, limit: number = 20) {
     const query = `
       MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
       OPTIONAL MATCH (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
-      RETURN o.reference AS reference, o.titre AS titre, a.nom AS artiste,
-        head(collect(mv.nom)) AS mouvement, toFloat(o.annee_creation) AS annee, m.nom AS musee
+      WITH o, m, collect(DISTINCT a.nom) AS artistes, collect(DISTINCT mv.nom) AS mouvements
+      RETURN o.reference AS reference, o.titre AS titre,
+        ${QueriesMetierService.#listeArtistesJointsFragment},
+        head(mouvements) AS mouvement, toFloat(o.annee_creation) AS annee, m.nom AS musee
       ORDER BY o.titre
       SKIP $skip LIMIT $limit
     `;
@@ -220,8 +232,10 @@ export class QueriesMetierService {
     const query = `
       MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre {reference: $reference})-[:EXPOSEE_A]->(m:Musee)
       OPTIONAL MATCH (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
-      RETURN o.reference AS reference, o.titre AS titre, a.nom AS artiste,
-        head(collect(mv.nom)) AS mouvement, toFloat(o.annee_creation) AS annee, m.nom AS musee
+      WITH o, m, collect(DISTINCT a.nom) AS artistes, collect(DISTINCT mv.nom) AS mouvements
+      RETURN o.reference AS reference, o.titre AS titre,
+        ${QueriesMetierService.#listeArtistesJointsFragment},
+        head(mouvements) AS mouvement, toFloat(o.annee_creation) AS annee, m.nom AS musee
     `;
     const [oeuvre] = await this.runQuery<Oeuvre>(query, { reference });
     return oeuvre;
