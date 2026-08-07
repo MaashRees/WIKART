@@ -45,9 +45,14 @@ export class QueriesMetierService {
   }
 
   async chaineInfluence(depart: string, arrivee: string) {
+    // INFLUENCE_PAR est orienté de l'artiste influencé vers son influenceur
+    // (Boudin -[:INFLUENCE_PAR]-> Courbet = "Boudin influencé par Courbet").
+    // On matche donc en non dirigé : la question porte sur l'existence d'une
+    // chaîne d'influence entre les deux artistes, pas sur le sens strict de
+    // la relation.
     const query = `
       MATCH p = shortestPath(
-          (a:Artiste {label_wikidata: $depart})-[:INFLUENCE_PAR*1..6]->(b:Artiste {label_wikidata: $arrivee})
+          (a:Artiste {label_wikidata: $depart})-[:INFLUENCE_PAR*1..6]-(b:Artiste {label_wikidata: $arrivee})
       )
       RETURN [n IN nodes(p) | coalesce(n.label_wikidata, n.nom)] AS chaine, length(p) AS nb_sauts
     `;
