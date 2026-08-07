@@ -31,7 +31,8 @@ export class QueriesMetierService {
 
   async artistesCentrauxMouvement(mouvement: string, limit: number = 10) {
     const query = `
-      MATCH (a:Artiste)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (a:Artiste)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      WHERE toLower(mv.nom) = toLower($mouvement)
       OPTIONAL MATCH (a)-[r:INFLUENCE_PAR]-()
       RETURN a.label_wikidata AS artiste, count(r) AS degre_influence
       ORDER BY degre_influence DESC, artiste
@@ -55,7 +56,8 @@ export class QueriesMetierService {
 
   async concentrationGeoMouvement(mouvement: string) {
     const query = `
-      MATCH (a:Artiste)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (a:Artiste)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      WHERE toLower(mv.nom) = toLower($mouvement)
       MATCH (a)-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(:Musee)-[:SITUE_A]->(:Ville)-[:DANS]->(:Departement)-[:DANS]->(r:Region)
       RETURN r.nom AS region, count(DISTINCT o) AS nb_oeuvres
       ORDER BY nb_oeuvres DESC
@@ -65,7 +67,8 @@ export class QueriesMetierService {
 
   async museesHubsMouvement(mouvement: string, limit: number = 10) {
     const query = `
-      MATCH (a:Artiste)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (a:Artiste)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      WHERE toLower(mv.nom) = toLower($mouvement)
       MATCH (a)-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
       RETURN m.nom AS musee, count(DISTINCT o) AS nb_oeuvres
       ORDER BY nb_oeuvres DESC
@@ -75,6 +78,79 @@ export class QueriesMetierService {
       mouvement,
       limit: int(limit)
     });
+  }
+
+  async statsGlobales() {
+    const [
+      [nbOeuvres],
+      [nbArtistes],
+      [nbMusees],
+      [nbMouvements],
+      parMouvement,
+      parArtiste,
+      parMusee,
+      parDecennie,
+      parRegion,
+      topArtistesParMouvement,
+    ] = await Promise.all([
+      this.runQuery<{ n: number }>('MATCH (o:Oeuvre) RETURN count(o) AS n'),
+      this.runQuery<{ n: number }>('MATCH (a:Artiste) RETURN count(a) AS n'),
+      this.runQuery<{ n: number }>('MATCH (m:Musee) RETURN count(m) AS n'),
+      this.runQuery<{ n: number }>('MATCH (mv:MouvementArtistique) RETURN count(mv) AS n'),
+      this.runQuery<{ mouvement: string; nb: number }>(`
+        MATCH (a:Artiste)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+        MATCH (a)-[:A_CREE]->(o:Oeuvre)
+        RETURN mv.nom AS mouvement, count(DISTINCT o) AS nb
+        ORDER BY nb DESC
+        LIMIT 10
+      `),
+      this.runQuery<{ artiste: string; nb: number }>(`
+        MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre)
+        RETURN a.nom AS artiste, count(o) AS nb
+        ORDER BY nb DESC
+        LIMIT 10
+      `),
+      this.runQuery<{ musee: string; nb: number }>(`
+        MATCH (o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
+        RETURN m.nom AS musee, count(o) AS nb
+        ORDER BY nb DESC
+        LIMIT 10
+      `),
+      this.runQuery<{ decennie: number; nb: number }>(`
+        MATCH (o:Oeuvre)
+        WHERE o.annee_creation IS NOT NULL
+        WITH toInteger(o.annee_creation / 10) * 10 AS decennie
+        RETURN decennie, count(*) AS nb
+        ORDER BY decennie
+      `),
+      this.runQuery<{ region: string; nb: number }>(`
+        MATCH (o:Oeuvre)-[:EXPOSEE_A]->(:Musee)-[:SITUE_A]->(:Ville)-[:DANS]->(:Departement)-[:DANS]->(r:Region)
+        RETURN r.nom AS region, count(o) AS nb
+        ORDER BY nb DESC
+        LIMIT 10
+      `),
+      this.runQuery<{ artiste: string; mouvement: string | null; nb: number }>(`
+        MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre)
+        OPTIONAL MATCH (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+        WITH a, head(collect(mv.nom)) AS mouvement, count(o) AS nb
+        RETURN a.nom AS artiste, mouvement, nb
+        ORDER BY nb DESC
+        LIMIT 10
+      `),
+    ]);
+
+    return {
+      nbOeuvres: nbOeuvres.n,
+      nbArtistes: nbArtistes.n,
+      nbMusees: nbMusees.n,
+      nbMouvements: nbMouvements.n,
+      parMouvement,
+      parArtiste,
+      parMusee,
+      parDecennie,
+      parRegion,
+      topArtistesParMouvement,
+    };
   }
 
   async listerMusees() {
@@ -103,8 +179,8 @@ export class QueriesMetierService {
     const query = `
       MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
       OPTIONAL MATCH (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
-      RETURN o.titre AS titre, a.nom AS artiste, head(collect(mv.nom)) AS mouvement,
-        toFloat(o.annee_creation) AS annee, m.nom AS musee
+      RETURN o.reference AS reference, o.titre AS titre, a.nom AS artiste,
+        head(collect(mv.nom)) AS mouvement, toFloat(o.annee_creation) AS annee, m.nom AS musee
       ORDER BY o.titre
       SKIP $skip LIMIT $limit
     `;
@@ -114,14 +190,14 @@ export class QueriesMetierService {
     });
   }
 
-  async trouverOeuvre(titre: string) {
+  async trouverOeuvre(reference: string) {
     const query = `
-      MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre {titre: $titre})-[:EXPOSEE_A]->(m:Musee)
+      MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre {reference: $reference})-[:EXPOSEE_A]->(m:Musee)
       OPTIONAL MATCH (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
-      RETURN o.titre AS titre, a.nom AS artiste, head(collect(mv.nom)) AS mouvement,
-        toFloat(o.annee_creation) AS annee, m.nom AS musee
+      RETURN o.reference AS reference, o.titre AS titre, a.nom AS artiste,
+        head(collect(mv.nom)) AS mouvement, toFloat(o.annee_creation) AS annee, m.nom AS musee
     `;
-    const [oeuvre] = await this.runQuery<Oeuvre>(query, { titre });
+    const [oeuvre] = await this.runQuery<Oeuvre>(query, { reference });
     return oeuvre;
   }
 
@@ -136,7 +212,8 @@ export class QueriesMetierService {
 
   async peutRelierOeuvre(artiste: string, mouvement: string, musee: string) {
     const query = `
-      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      WHERE toLower(mv.nom) = toLower($mouvement)
       MATCH (m:Musee {nom: $musee})
       RETURN a.nom AS artiste
     `;
@@ -146,22 +223,24 @@ export class QueriesMetierService {
 
   async creerOeuvre(oeuvre: OeuvreInput) {
     const query = `
-      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      WHERE toLower(mv.nom) = toLower($mouvement)
       MATCH (m:Musee {nom: $musee})
-      CREATE (o:Oeuvre {titre: $titre, annee_creation: $annee})
+      CREATE (o:Oeuvre {reference: $reference, titre: $titre, annee_creation: $annee})
       CREATE (a)-[:A_CREE]->(o)
       CREATE (o)-[:EXPOSEE_A]->(m)
-      RETURN o.titre AS titre, a.nom AS artiste, mv.nom AS mouvement,
+      RETURN o.reference AS reference, o.titre AS titre, a.nom AS artiste, mv.nom AS mouvement,
         toFloat(o.annee_creation) AS annee, m.nom AS musee
     `;
     const [created] = await this.runQuery<Oeuvre>(query, oeuvre);
     return created;
   }
 
-  async modifierOeuvre(titre: string, oeuvre: Omit<OeuvreInput, 'titre'>) {
+  async modifierOeuvre(reference: string, oeuvre: Omit<OeuvreInput, 'titre' | 'reference'>) {
     const query = `
-      MATCH (o:Oeuvre {titre: $titre})
-      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique {nom: $mouvement})
+      MATCH (o:Oeuvre {reference: $reference})
+      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      WHERE toLower(mv.nom) = toLower($mouvement)
       MATCH (m:Musee {nom: $musee})
       OPTIONAL MATCH ()-[ancienneCreation:A_CREE]->(o)
       WITH o, a, mv, m, collect(ancienneCreation) AS anciennesCreations
@@ -172,25 +251,34 @@ export class QueriesMetierService {
       SET o.annee_creation = $annee
       CREATE (a)-[:A_CREE]->(o)
       CREATE (o)-[:EXPOSEE_A]->(m)
-      RETURN o.titre AS titre, a.nom AS artiste, mv.nom AS mouvement,
+      RETURN o.reference AS reference, o.titre AS titre, a.nom AS artiste, mv.nom AS mouvement,
         toFloat(o.annee_creation) AS annee, m.nom AS musee
     `;
-    const [updated] = await this.runQuery<Oeuvre>(query, { titre, ...oeuvre });
+    const [updated] = await this.runQuery<Oeuvre>(query, { reference, ...oeuvre });
     return updated;
   }
 
-  async supprimerOeuvre(titre: string) {
+  async supprimerOeuvre(reference: string) {
     const query = `
-      MATCH (o:Oeuvre {titre: $titre})
+      MATCH (o:Oeuvre {reference: $reference})
+      WITH o, o.titre AS titre
       DETACH DELETE o
-      RETURN $titre AS titre
+      RETURN $reference AS reference, titre
     `;
-    const [deleted] = await this.runQuery<{ titre: string }>(query, { titre });
+    const [deleted] = await this.runQuery<{ reference: string; titre: string }>(query, { reference });
     return deleted;
   }
 }
 
+export type Musee = {
+  nom: string;
+  lat: number | null;
+  lon: number | null;
+  mouvements: string[];
+};
+
 export type Oeuvre = {
+  reference: string;
   titre: string;
   artiste: string;
   mouvement: string | null;
@@ -198,8 +286,9 @@ export type Oeuvre = {
   musee: string;
 };
 
-export type OeuvreInput = Omit<Oeuvre, 'mouvement'> & {
+export type OeuvreInput = Omit<Oeuvre, 'mouvement' | 'reference'> & {
   mouvement: string;
+  reference: string;
 };
 
 export const queriesMetierService = QueriesMetierService.create(neo4jDriver, env.NEO4J_DATABASE);

@@ -1,10 +1,10 @@
-"""Dump / restore de la base AuraDB (Bloc 3 — scripts d'administration).
+"""Dump / restore de la base AuraDB (Bloc 3 - scripts d'administration).
 
 AuraDB Free ne permet pas `neo4j-admin database dump` (réservé aux instances
 auto-hébergées) et APOC n'y est disponible que dans un sous-ensemble limité.
 On implémente donc un dump/restore portable **via le driver Python
 uniquement** : export JSON des nœuds et relations, restore par MERGE (donc
-idempotent — un restore sur une base déjà peuplée ne duplique rien).
+idempotent - un restore sur une base déjà peuplée ne duplique rien).
 
 Usage :
   uv run scripts/admin/dump_restore.py dump     # écrit dans scripts/admin/dumps/<timestamp>/

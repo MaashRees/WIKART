@@ -1,13 +1,19 @@
-"""CRUD Python — livrable séparé exigé par le sujet.
+"""CRUD Python - livrable séparé exigé par le sujet.
 
 Démonstration Create/Read/Update/Delete sur le nœud Oeuvre, via le driver
-`neo4j` Python DIRECTEMENT (pas d'appel HTTP à l'API Express de Conambot —
+`neo4j` Python DIRECTEMENT (pas d'appel HTTP à l'API Hono/Node de Conambot Nguessan -
 c'est un livrable indépendant du CRUD web, cf. section "Rappel exigence du
 sujet" de Repartition-Taches-Journee.md).
 
 Le nœud de démonstration utilise une référence préfixée `DEMO-CRUD-` pour ne
 jamais entrer en collision avec les identifiants réels Joconde (numériques),
 et le script nettoie derrière lui (delete en fin de démo).
+
+La création (`create_oeuvre`) applique la même règle métier que le backend
+Hono/Node (`peutRelierOeuvre` dans routes/oeuvres.ts) : l'artiste doit
+appartenir au mouvement donné et le musée doit exister, sinon la création est
+refusée (ValueError), même si cette exécution passe par le driver Python et
+non par l'API HTTP.
 
 Usage : uv run scripts/admin/crud.py
 """
@@ -20,23 +26,42 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from connection import get_driver, run_query, NEO4J_DATABASE  # noqa: E402
 
 
+def peut_relier_oeuvre(driver, artiste_nom: str, mouvement: str, musee_code: str) -> bool:
+    """Reproduit la validation faite par le backend Hono/Node (peutRelierOeuvre)
+    avant toute création/modification : l'artiste doit appartenir au mouvement
+    donné (comparaison insensible à la casse) et le musée doit exister."""
+    query = """
+    MATCH (a:Artiste {nom: $artiste_nom})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+    WHERE toLower(mv.nom) = toLower($mouvement)
+    MATCH (m:Musee {code_museofile: $musee_code})
+    RETURN a.nom AS artiste
+    """
+    rows = run_query(driver, query, {
+        "artiste_nom": artiste_nom, "mouvement": mouvement, "musee_code": musee_code,
+    })
+    return len(rows) > 0
+
+
 def create_oeuvre(
-    driver, reference: str, titre: str, annee: int | None = None,
-    artiste_nom: str | None = None, musee_code: str | None = None,
+    driver, reference: str, titre: str, artiste_nom: str, mouvement: str,
+    musee_code: str, annee: int | None = None,
 ) -> dict:
+    """Crée une œuvre en exigeant les mêmes relations valides que le backend :
+    artiste relié au mouvement, musée existant (cf. routes/oeuvres.ts::POST /)."""
+    if not peut_relier_oeuvre(driver, artiste_nom, mouvement, musee_code):
+        raise ValueError(
+            "Artiste, musée, mouvement ou lien artiste-mouvement introuvable."
+        )
+
     query = """
     MERGE (o:Oeuvre {reference: $reference})
     SET o.titre = $titre, o.annee_creation = $annee
     WITH o
-    OPTIONAL MATCH (a:Artiste {nom: $artiste_nom})
-    FOREACH (_ IN CASE WHEN a IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (a)-[rel:A_CREE]->(o) SET rel.annee = $annee
-    )
+    MATCH (a:Artiste {nom: $artiste_nom})
+    MERGE (a)-[rel:A_CREE]->(o) SET rel.annee = $annee
     WITH o
-    OPTIONAL MATCH (m:Musee {code_museofile: $musee_code})
-    FOREACH (_ IN CASE WHEN m IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (o)-[:EXPOSEE_A]->(m)
-    )
+    MATCH (m:Musee {code_museofile: $musee_code})
+    MERGE (o)-[:EXPOSEE_A]->(m)
     RETURN properties(o) AS oeuvre
     """
     rows = run_query(driver, query, {
@@ -87,15 +112,16 @@ def main() -> None:
 
         print("--- CREATE ---")
         print(create_oeuvre(
-            driver, ref, "Étude — démonstration CRUD Python", 2026,
-            artiste_nom="Rodin Auguste (1840-1917)", musee_code=musee_code,
+            driver, ref, "Étude - démonstration CRUD Python",
+            artiste_nom="Rodin Auguste (1840-1917)", mouvement="symbolisme",
+            musee_code=musee_code, annee=2026,
         ))
 
         print("\n--- READ ---")
         print(read_oeuvre(driver, ref))
 
         print("\n--- UPDATE ---")
-        print(update_oeuvre(driver, ref, titre="Étude — démonstration CRUD Python (modifiée)"))
+        print(update_oeuvre(driver, ref, titre="Étude - démonstration CRUD Python (modifiée)"))
         print(read_oeuvre(driver, ref))
 
         print("\n--- DELETE ---")

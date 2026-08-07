@@ -38,24 +38,24 @@ export const getMuseesHubs = (mouvement, limit = 10) =>
     .then((r) => r.data);
 
 // --- Œuvres (CRUD) ---
-export const listerOeuvres = (limit = 50, search = "") =>
-  client
-    .get("/oeuvres", { params: { limit, search } })
-    .then((r) => r.data);
+export const listerOeuvres = (page = 1, limit = 50) =>
+  client.get("/oeuvres", { params: { page, limit } }).then((r) => r.data);
 
-export const getOeuvre = (titre) =>
-  client.get(`/oeuvres/${encodeURIComponent(titre)}`).then((r) => r.data);
+export const getOeuvre = (reference) =>
+  client.get(`/oeuvres/${encodeURIComponent(reference)}`).then((r) => r.data);
 
 export const creerOeuvre = (oeuvre) =>
   client.post("/oeuvres", oeuvre).then((r) => r.data);
 
-export const modifierOeuvre = (titre, oeuvre) =>
+export const modifierOeuvre = (reference, oeuvre) =>
   client
-    .patch(`/oeuvres/${encodeURIComponent(titre)}`, oeuvre)
+    .patch(`/oeuvres/${encodeURIComponent(reference)}`, oeuvre)
     .then((r) => r.data);
 
-export const supprimerOeuvre = (titre) =>
-  client.delete(`/oeuvres/${encodeURIComponent(titre)}`).then((r) => r.data);
+export const supprimerOeuvre = (reference) =>
+  client
+    .delete(`/oeuvres/${encodeURIComponent(reference)}`)
+    .then((r) => r.data);
 
 // --- Musées ---
 export const getMusees = () => client.get("/musees").then((r) => r.data);

@@ -13,3 +13,10 @@ Pour tester le CRUD sans conserver de donnée, lancer dans cet ordre :
 2. `13 - Verifier oeuvre test`
 3. `14 - Modifier oeuvre test`
 4. `15 - Supprimer oeuvre test`
+
+La requête 12 capture la `reference` générée par le backend (`res.body.reference`)
+dans la variable de collection `oeuvreTestReference` via un script post-response ;
+les requêtes 13 à 15 l'utilisent ensuite dans leur URL (`{{oeuvreTestReference}}`)
+au lieu du titre codé en dur, car l'identifiant d'une œuvre est sa `reference`
+(le `titre` n'est pas unique). Il faut donc bien exécuter la 12 avant les
+suivantes dans la même session Bruno.
