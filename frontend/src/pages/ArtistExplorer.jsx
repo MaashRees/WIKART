@@ -1,5 +1,5 @@
 import { Building2, GitCommit, Share2, UserCheck } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getChaineInfluence, getRepartitionOeuvres } from "../api/queries";
 import NetworkGraph from "../components/NetworkGraph";
 
@@ -16,7 +16,9 @@ export default function ArtistExplorer() {
           Explorateur d'Artistes & Réseau d'Influence
         </h1>
         <p className="text-slate-400 text-xs mt-1">
-          Visualisez la répartition d'un artiste à travers les musées de France ou calculez le plus court chemin d'influence généalogique via Wikidata (P737).
+          Visualisez la répartition d'un artiste à travers les musées de France
+          ou calculez le plus court chemin d'influence généalogique via Wikidata
+          (P737).
         </p>
 
         <div className="flex gap-3 mt-4">
@@ -78,7 +80,7 @@ function RepartitionView() {
       id: m.musee,
       group: "musee",
       label: `${m.musee} (${m.nb_oeuvres || m.nb})`,
-      val: 8 + Math.min(20, (m.nb_oeuvres || m.nb || 1)),
+      val: 8 + Math.min(20, m.nb_oeuvres || m.nb || 1),
     })),
   ];
   const links = musees.map((m) => ({
@@ -100,13 +102,18 @@ function RepartitionView() {
               placeholder="Ex. Claude Monet"
             />
           </label>
-          <button type="submit" className="btn btn-primary text-xs px-4 py-2.5 flex items-center gap-2">
+          <button
+            type="submit"
+            className="btn btn-primary text-xs px-4 py-2.5 flex items-center gap-2"
+          >
             <Share2 size={14} /> Explorer le réseau
           </button>
         </form>
       </div>
 
-      {loading && <p className="text-slate-400 text-sm">Recherche dans Neo4j AuraDB...</p>}
+      {loading && (
+        <p className="text-slate-400 text-sm">Recherche dans Neo4j AuraDB...</p>
+      )}
       {erreur && <p className="text-red-400 text-sm">{erreur}</p>}
 
       {data && musees.length > 0 && (
@@ -131,9 +138,13 @@ function RepartitionView() {
                   className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-3"
                 >
                   <div>
-                    <span className="text-sm font-semibold text-white block">{m.musee}</span>
+                    <span className="text-sm font-semibold text-white block">
+                      {m.musee}
+                    </span>
                     {m.region && (
-                      <span className="text-xs text-slate-400">Région : {m.region}</span>
+                      <span className="text-xs text-slate-400">
+                        Région : {m.region}
+                      </span>
                     )}
                   </div>
                   <span className="badge badge-cyan text-xs shrink-0">
@@ -148,7 +159,8 @@ function RepartitionView() {
 
       {data && musees.length === 0 && !loading && (
         <div className="glass-card p-6 text-center text-slate-400">
-          Aucune œuvre trouvée pour cet artiste dans la base Joconde. Essayez un autre nom (ex. "Claude Monet", "Edgar Degas", "Eugène Boudin").
+          Aucune œuvre trouvée pour cet artiste dans la base Joconde. Essayez un
+          autre nom (ex. "Claude Monet", "Edgar Degas", "Eugène Boudin").
         </div>
       )}
     </div>
@@ -181,12 +193,15 @@ function InfluenceView() {
     chercher();
   }, []);
 
-  const rawPath = Array.isArray(data) ? data[0]?.chaine || (typeof data[0] === 'string' ? data : []) : data?.chaine || [];
+  const rawPath = Array.isArray(data)
+    ? data[0]?.chaine || (typeof data[0] === "string" ? data : [])
+    : data?.chaine || [];
   const chaine = Array.isArray(rawPath) ? rawPath : [];
 
   const nodes = chaine.map((nomArtiste, i) => ({
     id: nomArtiste,
-    group: i === 0 ? "central" : i === chaine.length - 1 ? "cible" : "influence",
+    group:
+      i === 0 ? "central" : i === chaine.length - 1 ? "cible" : "influence",
     label: nomArtiste,
     val: i === 0 || i === chaine.length - 1 ? 16 : 10,
   }));
@@ -218,13 +233,20 @@ function InfluenceView() {
               placeholder="Ex. Claude Monet"
             />
           </label>
-          <button type="submit" className="btn btn-primary text-xs px-4 py-2.5 flex items-center gap-2">
+          <button
+            type="submit"
+            className="btn btn-primary text-xs px-4 py-2.5 flex items-center gap-2"
+          >
             <GitCommit size={14} /> Trouver le chemin Cypher
           </button>
         </form>
       </div>
 
-      {loading && <p className="text-slate-400 text-sm">Calcul du chemin shortestPath dans Neo4j...</p>}
+      {loading && (
+        <p className="text-slate-400 text-sm">
+          Calcul du chemin shortestPath dans Neo4j...
+        </p>
+      )}
       {erreur && <p className="text-red-400 text-sm">{erreur}</p>}
 
       {data && chaine.length > 0 && (
@@ -245,10 +267,17 @@ function InfluenceView() {
             </h3>
             <div className="flex items-center gap-3 overflow-x-auto p-4 rounded-xl bg-slate-950/80 border border-white/10">
               {chaine.map((step, idx) => (
-                <div key={`${step}-${idx}`} className="flex items-center gap-3 shrink-0">
+                <div
+                  key={`${step}-${idx}`}
+                  className="flex items-center gap-3 shrink-0"
+                >
                   <div className="px-4 py-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-center">
-                    <span className="badge badge-purple text-[10px] block mb-1">
-                      {idx === 0 ? "Source" : idx === chaine.length - 1 ? "Cible" : `Étape ${idx}`}
+                    <span className="badge badge-purple text-[10px] block mb-1 mr-2">
+                      {idx === 0
+                        ? "Source"
+                        : idx === chaine.length - 1
+                        ? "Cible"
+                        : `Étape ${idx}`}
                     </span>
                     <span className="font-bold text-white text-sm">{step}</span>
                   </div>
@@ -269,7 +298,8 @@ function InfluenceView() {
 
       {data && chaine.length === 0 && !loading && (
         <div className="glass-card p-6 text-center text-slate-400">
-          Aucun chemin d'influence direct trouvé dans Wikidata entre ces deux artistes.
+          Aucun chemin d'influence direct trouvé dans Wikidata entre ces deux
+          artistes.
         </div>
       )}
     </div>

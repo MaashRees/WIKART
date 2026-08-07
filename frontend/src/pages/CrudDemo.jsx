@@ -269,13 +269,13 @@ export default function CrudDemo() {
               <Database size={18} className="text-purple-400" />
               Notices enregistrées ({oeuvres.length}/{LIST_LIMIT})
             </h3>
-            <div className="relative w-64">
+            <div className="relative w-100">
               <Search
                 size={15}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
               />
               <input
-                className="input-field w-full pl-9 pr-3 py-1.5 text-xs"
+                className="input-field w-full pl-9! pr-3 py-1.5 text-xs"
                 placeholder="Rechercher titre, artiste, musée..."
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
