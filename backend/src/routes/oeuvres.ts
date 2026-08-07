@@ -44,10 +44,6 @@ oeuvresRoutes.get('/:reference', zValidator('param', referenceSchema, validation
 
 oeuvresRoutes.post('/', zValidator('json', oeuvreSchema, validationError), async (c) => {
   const oeuvre = c.req.valid('json');
-  const existe = await queriesMetierService.oeuvreExiste(oeuvre.titre);
-  if (existe) {
-    return c.json({ error: 'Une œuvre avec ce titre existe déjà.' }, 409);
-  }
 
   const relationsValides = await queriesMetierService.peutRelierOeuvre(
     oeuvre.artiste,

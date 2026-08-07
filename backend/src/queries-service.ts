@@ -172,9 +172,15 @@ export class QueriesMetierService {
 
   async repartitionOeuvresArtiste(artisteNom: string) {
     const query = `
-      MATCH (a:Artiste {nom: $artisteNom})-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
-          -[:SITUE_A]->(:Ville)-[:DANS]->(:Departement)-[:DANS]->(r:Region)
-      RETURN m.nom AS musee, r.nom AS region, count(o) AS nb_oeuvres
+      MATCH (a:Artiste)
+      WHERE (a.nom IS NOT NULL OR a.label_wikidata IS NOT NULL)
+        AND (
+          toLower(coalesce(a.label_wikidata, a.nom)) = toLower($artisteNom)
+          OR toLower(coalesce(a.label_wikidata, a.nom)) CONTAINS toLower($artisteNom)
+        )
+      MATCH (a)-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
+      OPTIONAL MATCH (m)-[:SITUE_A]->(:Ville)-[:DANS]->(:Departement)-[:DANS]->(r:Region)
+      RETURN m.nom AS musee, coalesce(r.nom, 'Inconnue') AS region, count(DISTINCT o) AS nb_oeuvres
       ORDER BY nb_oeuvres DESC
     `;
     return this.runQuery<{ musee: string; region: string; nb_oeuvres: number }>(query, { artisteNom });
@@ -204,15 +210,6 @@ export class QueriesMetierService {
     `;
     const [oeuvre] = await this.runQuery<Oeuvre>(query, { reference });
     return oeuvre;
-  }
-
-  async oeuvreExiste(titre: string) {
-    const query = `
-      MATCH (o:Oeuvre {titre: $titre})
-      RETURN o.titre AS titre
-    `;
-    const result = await this.runQuery<{ titre: string }>(query, { titre });
-    return result.length > 0;
   }
 
   async peutRelierOeuvre(artiste: string, mouvement: string, musee: string) {
