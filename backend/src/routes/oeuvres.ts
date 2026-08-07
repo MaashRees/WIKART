@@ -23,8 +23,14 @@ const oeuvreSchema = z.object({
 
 const oeuvreModificationSchema = oeuvreSchema.omit({ titre: true });
 
-oeuvresRoutes.get('/', async (c) => {
-  const oeuvres = await queriesMetierService.listerOeuvres();
+const paginationSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+oeuvresRoutes.get('/', zValidator('query', paginationSchema, validationError), async (c) => {
+  const { page, limit } = c.req.valid('query');
+  const oeuvres = await queriesMetierService.listerOeuvres(page, limit);
   return c.json(oeuvres);
 });
 

@@ -99,15 +99,19 @@ export class QueriesMetierService {
     return this.runQuery<{ musee: string; region: string; nb_oeuvres: number }>(query, { artisteNom });
   }
 
-  async listerOeuvres() {
+  async listerOeuvres(page: number = 1, limit: number = 20) {
     const query = `
       MATCH (a:Artiste)-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
       OPTIONAL MATCH (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
       RETURN o.titre AS titre, a.nom AS artiste, head(collect(mv.nom)) AS mouvement,
         toFloat(o.annee_creation) AS annee, m.nom AS musee
       ORDER BY o.titre
+      SKIP $skip LIMIT $limit
     `;
-    return this.runQuery<Oeuvre>(query);
+    return this.runQuery<Oeuvre>(query, {
+      skip: int((page - 1) * limit),
+      limit: int(limit),
+    });
   }
 
   async trouverOeuvre(titre: string) {
