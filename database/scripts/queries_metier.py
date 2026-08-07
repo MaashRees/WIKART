@@ -18,9 +18,12 @@ def artistes_centraux_mouvement(driver, mouvement: str, limit: int = 10) -> list
     return run_query(driver, query, {"mouvement": mouvement, "limit": limit})
 
 def chaine_influence(driver, depart: str, arrivee: str) -> list[dict]:
+    # INFLUENCE_PAR va de l'artiste influencé vers son influenceur ; on matche
+    # en non dirigé pour trouver la chaîne entre les deux artistes quel que
+    # soit le sens réel des relations.
     query = """
     MATCH p = shortestPath(
-        (a:Artiste {label_wikidata: $depart})-[:INFLUENCE_PAR*1..6]->(b:Artiste {label_wikidata: $arrivee})
+        (a:Artiste {label_wikidata: $depart})-[:INFLUENCE_PAR*1..6]-(b:Artiste {label_wikidata: $arrivee})
     )
     RETURN [n IN nodes(p) | coalesce(n.label_wikidata, n.nom)] AS chaine, length(p) AS nb_sauts
     """
