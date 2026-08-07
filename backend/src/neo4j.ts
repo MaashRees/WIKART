@@ -4,4 +4,7 @@ import { env } from './env.js';
 export const neo4jDriver = neo4j.driver(
   env.NEO4J_URI,
   neo4j.auth.basic(env.NEO4J_USERNAME, env.NEO4J_PASSWORD),
+	{
+		disableLosslessIntegers: true
+	}
 )

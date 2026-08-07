@@ -28,9 +28,8 @@ artistesRoutes.get('/:artisteNom/repartition-oeuvres', zValidator(
   }),
   validationError,
 ), async (c) => {
-  const repartition = await queriesMetierService.repartitionOeuvresArtiste(
-    c.req.valid('param').artisteNom,
-  );
+	const nom = c.req.valid('param').artisteNom
+	const repartition = await queriesMetierService.repartitionOeuvresArtiste(nom)
   return c.json(repartition);
 });
 

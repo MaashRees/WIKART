@@ -6,11 +6,13 @@ import { validationError } from '../validation.js';
 
 const mouvementsRoutes = new Hono();
 
+const mouvementSchema = z.object({
+	mouvement: z.string().min(1).toLowerCase(),
+})
+
 mouvementsRoutes.get('/:mouvement/artistes-centraux', zValidator(
 	'param',
-	z.object({
-		mouvement: z.string().min(1),
-	}),
+	mouvementSchema,
 	validationError,
 ), zValidator(
 	'query',
@@ -30,9 +32,7 @@ mouvementsRoutes.get('/:mouvement/artistes-centraux', zValidator(
 
 mouvementsRoutes.get('/:mouvement/concentration-geographique', zValidator(
 	'param',
-	z.object({
-		mouvement: z.string().min(1),
-	}),
+	mouvementSchema,
 	validationError,
 ), async (c) => {
 	const mouvement = c.req.valid('param').mouvement;
@@ -44,9 +44,7 @@ mouvementsRoutes.get('/:mouvement/concentration-geographique', zValidator(
 
 mouvementsRoutes.get('/:mouvement/musees-hubs', zValidator(
   'param',
-  z.object({
-    mouvement: z.string().min(1),
-  }),
+  mouvementSchema,
   validationError,
 ), zValidator(
   'query',
