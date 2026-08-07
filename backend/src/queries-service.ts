@@ -34,7 +34,7 @@ export class QueriesMetierService {
       MATCH (a:Artiste)-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
       WHERE toLower(mv.nom) = toLower($mouvement)
       OPTIONAL MATCH (a)-[r:INFLUENCE_PAR]-()
-      RETURN a.label_wikidata AS artiste, count(r) AS degre_influence
+      RETURN coalesce(a.label_wikidata, a.nom) AS artiste, count(r) AS degre_influence
       ORDER BY degre_influence DESC, artiste
       LIMIT $limit
     `;
@@ -51,10 +51,25 @@ export class QueriesMetierService {
     // chaîne d'influence entre les deux artistes, pas sur le sens strict de
     // la relation.
     const query = `
-      MATCH p = shortestPath(
-          (a:Artiste {label_wikidata: $depart})-[:INFLUENCE_PAR*1..6]-(b:Artiste {label_wikidata: $arrivee})
-      )
+      MATCH (a:Artiste)
+      WHERE (a.nom IS NOT NULL OR a.label_wikidata IS NOT NULL)
+        AND (
+          toLower(coalesce(a.label_wikidata, a.nom)) = toLower($depart)
+          OR toLower(coalesce(a.label_wikidata, a.nom)) CONTAINS toLower($depart)
+        )
+      WITH collect(DISTINCT a) AS departArts
+      MATCH (b:Artiste)
+      WHERE (b.nom IS NOT NULL OR b.label_wikidata IS NOT NULL)
+        AND (
+          toLower(coalesce(b.label_wikidata, b.nom)) = toLower($arrivee)
+          OR toLower(coalesce(b.label_wikidata, b.nom)) CONTAINS toLower($arrivee)
+        )
+      WITH head(departArts) AS a, collect(DISTINCT b) AS arriveeArts
+      WITH a, head(arriveeArts) AS b
+      WHERE a IS NOT NULL AND b IS NOT NULL AND a <> b
+      MATCH p = shortestPath((a)-[:INFLUENCE_PAR*1..6]-(b))
       RETURN [n IN nodes(p) | coalesce(n.label_wikidata, n.nom)] AS chaine, length(p) AS nb_sauts
+      LIMIT 1
     `;
     return this.runQuery<{ chaine: string[]; nb_sauts: number }>(query, { depart, arrivee });
   }
@@ -212,22 +227,34 @@ export class QueriesMetierService {
     return oeuvre;
   }
 
-  async peutRelierOeuvre(artiste: string, mouvement: string, musee: string) {
-    const query = `
-      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
-      WHERE toLower(mv.nom) = toLower($mouvement)
-      MATCH (m:Musee {nom: $musee})
-      RETURN a.nom AS artiste
-    `;
-    const result = await this.runQuery<{ artiste: string }>(query, { artiste, mouvement, musee });
-    return result.length > 0;
-  }
+  // Résout artiste/mouvement/musée en les créant s'ils n'existent pas encore
+  // (MERGE), plutôt que d'exiger qu'ils préexistent (MATCH strict) : le
+  // formulaire CRUD a des champs texte libres, il doit pouvoir enregistrer un
+  // artiste, un musée ou un mouvement inédits. Le mouvement est recherché de
+  // façon insensible à la casse pour éviter de dupliquer "impressionnisme" en
+  // "Impressionnisme" ; l'artiste et le musée suivent la casse exacte saisie,
+  // cohérent avec le reste de l'appli (pas de dédoublonnage fuzzy, cf.
+  // constraints.cypher).
+  static readonly #resoudreEntitesFragment = `
+    MERGE (a:Artiste {nom: $artiste})
+    WITH a
+    CALL {
+      WITH $mouvement AS mouvementNom
+      OPTIONAL MATCH (existant:MouvementArtistique) WHERE toLower(existant.nom) = toLower(mouvementNom)
+      FOREACH (_ IN CASE WHEN existant IS NULL THEN [1] ELSE [] END |
+        CREATE (:MouvementArtistique {nom: mouvementNom})
+      )
+      WITH mouvementNom
+      MATCH (mv:MouvementArtistique) WHERE toLower(mv.nom) = toLower(mouvementNom)
+      RETURN mv LIMIT 1
+    }
+    MERGE (a)-[:APPARTIENT_AU_MOUVEMENT]->(mv)
+    MERGE (m:Musee {nom: $musee})
+  `;
 
   async creerOeuvre(oeuvre: OeuvreInput) {
     const query = `
-      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
-      WHERE toLower(mv.nom) = toLower($mouvement)
-      MATCH (m:Musee {nom: $musee})
+      ${QueriesMetierService.#resoudreEntitesFragment}
       CREATE (o:Oeuvre {reference: $reference, titre: $titre, annee_creation: $annee})
       CREATE (a)-[:A_CREE]->(o)
       CREATE (o)-[:EXPOSEE_A]->(m)
@@ -241,9 +268,7 @@ export class QueriesMetierService {
   async modifierOeuvre(reference: string, oeuvre: Omit<OeuvreInput, 'titre' | 'reference'>) {
     const query = `
       MATCH (o:Oeuvre {reference: $reference})
-      MATCH (a:Artiste {nom: $artiste})-[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
-      WHERE toLower(mv.nom) = toLower($mouvement)
-      MATCH (m:Musee {nom: $musee})
+      ${QueriesMetierService.#resoudreEntitesFragment}
       OPTIONAL MATCH ()-[ancienneCreation:A_CREE]->(o)
       WITH o, a, mv, m, collect(ancienneCreation) AS anciennesCreations
       FOREACH (relation IN anciennesCreations | DELETE relation)

@@ -45,15 +45,6 @@ oeuvresRoutes.get('/:reference', zValidator('param', referenceSchema, validation
 oeuvresRoutes.post('/', zValidator('json', oeuvreSchema, validationError), async (c) => {
   const oeuvre = c.req.valid('json');
 
-  const relationsValides = await queriesMetierService.peutRelierOeuvre(
-    oeuvre.artiste,
-    oeuvre.mouvement,
-    oeuvre.musee,
-  );
-  if (!relationsValides) {
-    return c.json({ error: 'Artiste, musée, mouvement ou lien artiste-mouvement introuvable.' }, 404);
-  }
-
   const created = await queriesMetierService.creerOeuvre({
     ...oeuvre,
     reference: crypto.randomUUID(),
@@ -72,15 +63,6 @@ oeuvresRoutes.patch(
     const existe = await queriesMetierService.trouverOeuvre(reference);
     if (!existe) {
       return c.json({ error: 'Œuvre introuvable.' }, 404);
-    }
-
-    const relationsValides = await queriesMetierService.peutRelierOeuvre(
-      oeuvre.artiste,
-      oeuvre.mouvement,
-      oeuvre.musee,
-    );
-    if (!relationsValides) {
-      return c.json({ error: 'Artiste, musée, mouvement ou lien artiste-mouvement introuvable.' }, 404);
     }
 
     const updated = await queriesMetierService.modifierOeuvre(reference, {
