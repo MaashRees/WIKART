@@ -2,6 +2,8 @@ import {
   AlertCircle,
   Building2,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Database,
   PlusCircle,
   Search,
@@ -35,10 +37,11 @@ export default function CrudDemo() {
   const [message, setMessage] = useState(null);
   const [statusType, setStatusType] = useState("success");
   const [searchFilter, setSearchFilter] = useState("");
+  const [page, setPage] = useState(1);
 
-  const charger = (search = searchFilter) => {
+  const charger = (numeroPage = page) => {
     setChargement(true);
-    listerOeuvres(LIST_LIMIT, search)
+    listerOeuvres(numeroPage, LIST_LIMIT)
       .then((data) => setOeuvres(data || []))
       .catch((err) => {
         setMessage(`Impossible de charger les œuvres : ${err.message}`);
@@ -48,11 +51,26 @@ export default function CrudDemo() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      charger(searchFilter);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchFilter]);
+    charger(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  // La recherche filtre côté client sur la page actuellement chargée
+  // (le backend GET /oeuvres ne supporte pas de paramètre de recherche).
+  const oeuvresAffichees = searchFilter.trim()
+    ? oeuvres.filter((o) =>
+        [o.titre, o.artiste, o.musee]
+          .filter(Boolean)
+          .some((champ) =>
+            champ.toLowerCase().includes(searchFilter.trim().toLowerCase()),
+          ),
+      )
+    : oeuvres;
+
+  const pagePrecedente = () => setPage((p) => Math.max(1, p - 1));
+  const pageSuivante = () => {
+    if (oeuvres.length === LIST_LIMIT) setPage((p) => p + 1);
+  };
 
   const soumettre = async (e) => {
     e.preventDefault();
@@ -70,7 +88,7 @@ export default function CrudDemo() {
           musee: form.musee,
           annee: form.annee,
         });
-        setMessage(`Œuvre "${enEdition}" mise à jour dans Neo4j.`);
+        setMessage(`Œuvre "${form.titre}" mise à jour dans Neo4j.`);
       } else {
         await creerOeuvre(form);
         setMessage(`Œuvre "${form.titre}" créée et reliée dans Neo4j.`);
@@ -78,7 +96,7 @@ export default function CrudDemo() {
       setStatusType("success");
       setForm(VIDE);
       setEnEdition(null);
-      charger(searchFilter);
+      charger(page);
     } catch (err) {
       setMessage(err.response?.data?.error || err.message);
       setStatusType("error");
@@ -93,7 +111,7 @@ export default function CrudDemo() {
       annee: String(oeuvre.annee ?? ""),
       musee: oeuvre.musee,
     });
-    setEnEdition(oeuvre.titre);
+    setEnEdition(oeuvre.reference);
   };
 
   const annulerEdition = () => {
@@ -101,12 +119,12 @@ export default function CrudDemo() {
     setEnEdition(null);
   };
 
-  const supprimer = async (titreOeuvre) => {
+  const supprimer = async (oeuvre) => {
     try {
-      await supprimerOeuvre(titreOeuvre);
-      setMessage(`Œuvre "${titreOeuvre}" supprimée de la base.`);
+      await supprimerOeuvre(oeuvre.reference);
+      setMessage(`Œuvre "${oeuvre.titre}" supprimée de la base.`);
       setStatusType("info");
-      charger(searchFilter);
+      charger(page);
     } catch (err) {
       setMessage(err.response?.data?.error || err.message);
       setStatusType("error");
@@ -124,7 +142,8 @@ export default function CrudDemo() {
         </h1>
         <p className="text-slate-400 text-xs mt-1">
           Insertion, modification et suppression de notices d'œuvres — affichage
-          initial limité à {LIST_LIMIT} notices et recherche en temps réel.
+          paginé par lots de {LIST_LIMIT} notices, recherche filtrant la page
+          affichée.
         </p>
       </div>
 
@@ -154,7 +173,7 @@ export default function CrudDemo() {
             <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
               <PlusCircle size={18} className="text-indigo-400" />
               {enEdition
-                ? `Modifier "${enEdition}"`
+                ? `Modifier "${form.titre}"`
                 : "Nouvelle Notice d'Œuvre"}
             </h3>
 
@@ -267,7 +286,8 @@ export default function CrudDemo() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="text-white font-bold text-base flex items-center gap-2">
               <Database size={18} className="text-purple-400" />
-              Notices enregistrées ({oeuvres.length}/{LIST_LIMIT})
+              Notices enregistrées — page {page} ({oeuvresAffichees.length}/
+              {LIST_LIMIT})
             </h3>
             <div className="relative w-64">
               <Search
@@ -299,9 +319,9 @@ export default function CrudDemo() {
                   </tr>
                 </thead>
                 <tbody>
-                  {oeuvres.map((o, idx) => (
+                  {oeuvresAffichees.map((o, idx) => (
                     <tr
-                      key={`${o.titre}-${idx}`}
+                      key={o.reference ?? `${o.titre}-${idx}`}
                       className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
                     >
                       <td className="p-3 font-bold text-white max-w-xs truncate">
@@ -333,7 +353,7 @@ export default function CrudDemo() {
                           </button>
                           <button
                             className="btn btn-danger p-1 text-[11px]"
-                            onClick={() => supprimer(o.titre)}
+                            onClick={() => supprimer(o)}
                             title="Supprimer"
                           >
                             <Trash2 size={14} />
@@ -342,7 +362,7 @@ export default function CrudDemo() {
                       </td>
                     </tr>
                   ))}
-                  {oeuvres.length === 0 && (
+                  {oeuvresAffichees.length === 0 && (
                     <tr>
                       <td
                         colSpan={4}
@@ -354,6 +374,26 @@ export default function CrudDemo() {
                   )}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {!chargement && !searchFilter.trim() && (
+            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+              <button
+                className="btn btn-secondary px-3 py-1.5 text-[11px] flex items-center gap-1.5 disabled:opacity-40"
+                onClick={pagePrecedente}
+                disabled={page === 1}
+              >
+                <ChevronLeft size={14} /> Précédent
+              </button>
+              <span className="text-xs text-slate-400">Page {page}</span>
+              <button
+                className="btn btn-secondary px-3 py-1.5 text-[11px] flex items-center gap-1.5 disabled:opacity-40"
+                onClick={pageSuivante}
+                disabled={oeuvres.length < LIST_LIMIT}
+              >
+                Suivant <ChevronRight size={14} />
+              </button>
             </div>
           )}
         </div>

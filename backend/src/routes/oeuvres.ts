@@ -6,8 +6,8 @@ import { validationError } from '../validation.js';
 
 const oeuvresRoutes = new Hono();
 
-const titreSchema = z.object({
-  titre: z.string().trim().min(1),
+const referenceSchema = z.object({
+  reference: z.string().trim().min(1),
 });
 
 const oeuvreSchema = z.object({
@@ -34,8 +34,8 @@ oeuvresRoutes.get('/', zValidator('query', paginationSchema, validationError), a
   return c.json(oeuvres);
 });
 
-oeuvresRoutes.get('/:titre', zValidator('param', titreSchema, validationError), async (c) => {
-  const oeuvre = await queriesMetierService.trouverOeuvre(c.req.valid('param').titre);
+oeuvresRoutes.get('/:reference', zValidator('param', referenceSchema, validationError), async (c) => {
+  const oeuvre = await queriesMetierService.trouverOeuvre(c.req.valid('param').reference);
   if (!oeuvre) {
     return c.json({ error: 'Œuvre introuvable.' }, 404);
   }
@@ -60,19 +60,20 @@ oeuvresRoutes.post('/', zValidator('json', oeuvreSchema, validationError), async
 
   const created = await queriesMetierService.creerOeuvre({
     ...oeuvre,
+    reference: crypto.randomUUID(),
     annee: oeuvre.annee ?? null,
   });
   return c.json(created, 201);
 });
 
 oeuvresRoutes.patch(
-  '/:titre',
-  zValidator('param', titreSchema, validationError),
+  '/:reference',
+  zValidator('param', referenceSchema, validationError),
   zValidator('json', oeuvreModificationSchema, validationError),
   async (c) => {
-    const titre = c.req.valid('param').titre;
+    const reference = c.req.valid('param').reference;
     const oeuvre = c.req.valid('json');
-    const existe = await queriesMetierService.trouverOeuvre(titre);
+    const existe = await queriesMetierService.trouverOeuvre(reference);
     if (!existe) {
       return c.json({ error: 'Œuvre introuvable.' }, 404);
     }
@@ -86,7 +87,7 @@ oeuvresRoutes.patch(
       return c.json({ error: 'Artiste, musée, mouvement ou lien artiste-mouvement introuvable.' }, 404);
     }
 
-    const updated = await queriesMetierService.modifierOeuvre(titre, {
+    const updated = await queriesMetierService.modifierOeuvre(reference, {
       ...oeuvre,
       annee: oeuvre.annee ?? null,
     });
@@ -94,8 +95,8 @@ oeuvresRoutes.patch(
   },
 );
 
-oeuvresRoutes.delete('/:titre', zValidator('param', titreSchema, validationError), async (c) => {
-  const deleted = await queriesMetierService.supprimerOeuvre(c.req.valid('param').titre);
+oeuvresRoutes.delete('/:reference', zValidator('param', referenceSchema, validationError), async (c) => {
+  const deleted = await queriesMetierService.supprimerOeuvre(c.req.valid('param').reference);
   if (!deleted) {
     return c.json({ error: 'Œuvre introuvable.' }, 404);
   }

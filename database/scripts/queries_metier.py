@@ -1,6 +1,6 @@
 """
 Chaque requête est exposée comme une fonction paramétrable (réutilisable
-telle quelle par l'API Express de Conambot) + une démo exécutable avec
+telle quelle par l'API Hono/Node de Conambot Nguessan) + une démo exécutable avec
 des valeurs réelles du graphe importé.
 
 Usage : uv run scripts/queries_metier.py
@@ -67,23 +67,23 @@ def main() -> None:
     driver = get_driver()
     try:
         _print(
-            "1. Artistes centraux — mouvement 'symbolisme'",
+            "1. Artistes centraux - mouvement 'symbolisme'",
             artistes_centraux_mouvement(driver, "symbolisme"),
         )
         _print(
-            "2. Chaîne d'influence — Raoul Dufy → Gustave Courbet",
+            "2. Chaîne d'influence - Raoul Dufy → Gustave Courbet",
             chaine_influence(driver, "Raoul Dufy", "Gustave Courbet"),
         )
         _print(
-            "3. Concentration géographique — mouvement 'symbolisme'",
+            "3. Concentration géographique - mouvement 'symbolisme'",
             concentration_geo_mouvement(driver, "symbolisme"),
         )
         _print(
-            "4. Musées hubs — mouvement 'symbolisme'",
+            "4. Musées hubs - mouvement 'symbolisme'",
             musees_hubs_mouvement(driver, "symbolisme"),
         )
         _print(
-            "5. Répartition des œuvres — Rodin Auguste (1840-1917)",
+            "5. Répartition des œuvres - Rodin Auguste (1840-1917)",
             repartition_oeuvres_artiste(driver, "Rodin Auguste (1840-1917)"),
         )
     finally:

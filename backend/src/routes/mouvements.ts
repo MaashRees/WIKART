@@ -6,6 +6,11 @@ import { validationError } from '../validation.js';
 
 const mouvementsRoutes = new Hono();
 
+mouvementsRoutes.get('/stats', async (c) => {
+  const stats = await queriesMetierService.statsGlobales();
+  return c.json(stats);
+});
+
 mouvementsRoutes.get('/:mouvement/artistes-centraux', zValidator(
 	'param',
 	z.object({

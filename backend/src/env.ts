@@ -6,6 +6,7 @@ const schema = z.object({
   NEO4J_USERNAME: z.string(),
   NEO4J_PASSWORD: z.string(),
   NEO4J_DATABASE: z.string(),
+  FRONTEND_URL: z.url().optional(),
 });
 
 function parseEnv() {
