@@ -18,7 +18,7 @@ import pandas as pd
 
 from connection import get_driver, NEO4J_DATABASE
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 BATCH_SIZE = 2000
 
 
@@ -210,16 +210,6 @@ def import_influences(session, known_artist_labels: set[str]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Import réel des données livrées par Seer dans AuraDB.")
-    parser.add_argument(
-        "--no-wipe",
-        "--append",
-        dest="no_wipe",
-        action="store_true",
-        help="Ne pas vider le graphe avant l'import (mode upsert : rajoute ou met à jour les éléments existants).",
-    )
-    args = parser.parse_args()
-
     df = pd.read_csv(DATA_DIR / "oeuvres_clean.csv")
     wikidata_lookup = load_wikidata_lookup()
     known_artist_labels = {
@@ -229,10 +219,7 @@ def main() -> None:
     driver = get_driver()
     try:
         with driver.session(database=NEO4J_DATABASE) as session:
-            if not args.no_wipe:
-                wipe_graph(session)
-            else:
-                print("Conservation du graphe (mode upsert / mise à jour sans suppression).")
+            wipe_graph(session)
             import_geo_and_musees(session, df)
             import_oeuvres(session, df)
             import_artistes(session, df, wikidata_lookup)
