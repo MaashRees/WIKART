@@ -77,6 +77,18 @@ export class QueriesMetierService {
     });
   }
 
+  async listerMusees() {
+    const query = `
+      MATCH (m:Musee)
+      OPTIONAL MATCH (m)<-[:EXPOSEE_A]-(:Oeuvre)<-[:A_CREE]-(a:Artiste)
+        -[:APPARTIENT_AU_MOUVEMENT]->(mv:MouvementArtistique)
+      RETURN m.nom AS nom, toFloat(m.lat) AS lat, toFloat(m.lon) AS lon,
+        collect(DISTINCT mv.nom) AS mouvements
+      ORDER BY nom
+    `;
+    return this.runQuery<Musee>(query);
+  }
+
   async repartitionOeuvresArtiste(artisteNom: string) {
     const query = `
       MATCH (a:Artiste {nom: $artisteNom})-[:A_CREE]->(o:Oeuvre)-[:EXPOSEE_A]->(m:Musee)
